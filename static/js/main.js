@@ -84,6 +84,7 @@ async function joinChatRoom(){
 
         chatSocket.onopen = function(e){
             console.log('onOpen - chat socket was opened')
+            scrollToBottom()
         }
 
         chatSocket.onclose = function(e){
@@ -145,6 +146,7 @@ function onChatMessage(data){
             </div>`
         }
     }
+    scrollToBottom()
 }
 
 /**
@@ -179,8 +181,15 @@ chatSubmitElement.onclick = function(e){
     return false
 }
 
+chatInputElement.onkeyup = function(e){
+    if (e.keyCode == 13){
+        sendMessage()
+    }
+}
 
-
+function scrollToBottom(){
+    chatLogElement.scrollTop = chatLogElement.scrollHeight
+}
 
 
 

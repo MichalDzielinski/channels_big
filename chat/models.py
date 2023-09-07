@@ -14,15 +14,20 @@ class Message(models.Model):
         return f'{self.sent_by}'
 
 class Room(models.Model):
-    WAITING = 'waiting'
-    ACTIVE = 'active'
-    CLOSED = 'closed'
+    # WAITING = 'waiting'
+    # ACTIVE = 'active'
+    # CLOSED = 'closed'
 
-    CHOICES_STATUS = (
-        (WAITING, 'Waiting'),
-        (ACTIVE, 'Active'),
-        (CLOSED, 'Closed'),
-    )
+    # CHOICES_STATUS = (
+    #     (WAITING, 'Waiting'),
+    #     (ACTIVE, 'Active'),
+    #     (CLOSED, 'Closed'),
+    # )
+
+    class Status(models.TextChoices):
+        WAITING = 'Waiting','Waiting'
+        ACTIVE = 'Active','Active'
+        CLOSED = 'Closed','Closed'
 
 
     uuid = models.CharField(max_length=255)
@@ -30,7 +35,7 @@ class Room(models.Model):
     agent = models.ForeignKey(User, related_name='rooms', blank=True, null=True, on_delete=models.SET_NULL)
     messages = models.ManyToManyField(Message, blank=True)
     url = models.CharField(max_length=255, blank=True, null=True)
-    status = models.CharField(max_length=20, choices=CHOICES_STATUS, default=WAITING)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.WAITING)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
