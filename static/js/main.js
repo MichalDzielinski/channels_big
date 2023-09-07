@@ -5,7 +5,8 @@
 let chatName = ''
 let chatSocket = null
 let chatWindowUrl = window.location.href
-let chatRoomUuid = Math.random().toString(36).slice(2,12)
+let chatRoomUuid = Math.random().toString(36).slice(2, 12)
+
 
 /**
  * Elements
@@ -24,19 +25,25 @@ const chatSubmitElement = document.querySelector('#chat_message_submit')
 
 
 /**
- * functions
+ * Functions 
  */
-function getCookie(name){
+
+function scrollToBottom() {
+    chatLogElement.scrollTop = chatLogElement.scrollHeight
+}
+
+
+function getCookie(name) {
     var cookieValue = null
 
-    if (document.cookie && document.cookie != ''){
+    if (document.cookie && document.cookie != '') {
         var cookies = document.cookie.split(';')
 
-        for (var i=0; i<cookies.length; i++){
+        for (var i = 0; i < cookies.length; i++) {
             var cookie = cookies[i].trim()
 
-            if(cookie.substring(0, name.length+1)===(name+'=')){
-                cookieValue = decodeURIComponent(cookie.substring(name.length +1))   
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1))
 
                 break
             }
@@ -46,114 +53,141 @@ function getCookie(name){
     return cookieValue
 }
 
-async function joinChatRoom(){
-    console.log('joinChatRoom')
 
-    chatName = chatNameElement.value
-
-    console.log("Join as:",  chatName);
-    console.log("Room uuid:", chatRoomUuid);
-
-    const data = new FormData()
-
-        data.append('name', chatName)
-        data.append('url', chatWindowUrl)
-
-        await fetch(`/api/create-room/${chatRoomUuid}/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken')                
-
-            },
-            body: data
-        })
-        .then(function(res){
-            return res.json()
-        })
-        .then(function(data){
-            console.log('data', data)
-        })
-
-        chatSocket = new WebSocket(`ws://${window.location.host}/ws/${chatRoomUuid}/`)
-
-        chatSocket.onmessage = function(e){
-            console.log('onMessage');
-
-            onChatMessage(JSON.parse(e.data))
-        }
-
-        chatSocket.onopen = function(e){
-            console.log('onOpen - chat socket was opened')
-            scrollToBottom()
-        }
-
-        chatSocket.onclose = function(e){
-            console.log('onClose - chat socket was closed')
-        }
-
-
-
-
-    
-}
-
-function sendMessage(){
+function sendMessage() {
     chatSocket.send(JSON.stringify({
         'type': 'message',
         'message': chatInputElement.value,
-        'name': 'chatName',
+        'name': chatName
     }))
 
     chatInputElement.value = ''
 }
 
-function onChatMessage(data){
+
+function onChatMessage(data) {
     console.log('onChatMessage', data)
 
-    if (data.type == 'chat_message'){  
-        if(data.agent){
-            `<div class='flex w-full mt-2 space-x-3 max-w-md'>
-                
-                
-                <div>
-                    <div class='bg-gray-600 p-3 rounded-l-lg rounded-br-lg'>
-                        <p class='text-sm'>${data.message}</p>
-                    </div>
-            
-            
-                    <span class='text-xs text-gray-500 leading-none'>${data.created_at} ago</span>
-                </div>
-                
-                <div class='flex-shrink-0 h-10 w-10 rounded-full bg-gray-300 text-center pt-2'>${data.initials}</div>
-            </div>`
-            
+    if (data.type == 'chat_message') {
+        let tmpInfo = document.querySelector('.tmp-info')
 
-        }else{
-            chatLogElement.innerHTML += 
-            `<div class='flex w-full mt-2 space-x-3 max-w-md ml-auto justify-end'>
-                
-                
-                <div>
-                    <div class='bg-blue-600 p-3 rounded-l-lg rounded-br-lg'>
-                        <p class='text-sm'>${data.message}</p>
+        if (tmpInfo) {
+            tmpInfo.remove()
+        }
+        
+        if (data.agent) {
+            chatLogElement.innerHTML += `
+                <div class="flex w-full mt-2 space-x-3 max-w-md">
+                    <div class="flex-shrink-0 h-10 w-10 rounded-full bg-gray-300 text-center pt-2">${data.initials}</div>
+
+                    <div>
+                        <div class="bg-gray-300 p-3 rounded-l-lg rounded-br-lg">
+                            <p class="text-sm">${data.message}</p>
+                        </div>
+                        
+                        <span class="text-xs text-gray-500 leading-none">${data.created_at} ago</span>
                     </div>
-            
-            
-                    <span class='text-xs text-gray-500 leading-none'>${data.created_at} ago</span>
                 </div>
-                
-                <div class='flex-shrink-0 h-10 w-10 rounded-full bg-gray-300 text-center pt-2'>${data.initials}</div>
-            </div>`
+            `
+        } else {
+            chatLogElement.innerHTML += `
+                <div class="flex w-full mt-2 space-x-3 max-w-md ml-auto justify-end">
+                    <div>
+                        <div class="bg-blue-300 p-3 rounded-l-lg rounded-br-lg">
+                            <p class="text-sm">${data.message}</p>
+                        </div>
+                        
+                        <span class="text-xs text-gray-500 leading-none">${data.created_at} ago</span>
+                    </div>
+
+                    <div class="flex-shrink-0 h-10 w-10 rounded-full bg-gray-300 text-center pt-2">${data.initials}</div>
+                </div>
+            `
+        }
+    } else if (data.type == 'users_update') {
+        chatLogElement.innerHTML += '<p class="mt-2">The admin/agent has joined the chat!'
+    } else if (data.type == 'writing_active') {
+        if (data.agent) {
+            let tmpInfo = document.querySelector('.tmp-info')
+
+            if (tmpInfo) {
+                tmpInfo.remove()
+            }
+
+            chatLogElement.innerHTML += `
+                <div class="tmp-info flex w-full mt-2 space-x-3 max-w-md">
+                    <div class="flex-shrink-0 h-10 w-10 rounded-full bg-gray-300 text-center pt-2">${data.initials}</div>
+
+                    <div>
+                        <div class="bg-gray-300 p-3 rounded-l-lg rounded-br-lg">
+                            <p class="text-sm">The agent/admin is writing a message</p>
+                        </div>
+                    </div>
+                </div>
+            `
         }
     }
+
     scrollToBottom()
 }
 
+
+async function joinChatRoom() {
+    console.log('joinChatRoom')
+
+    chatName = chatNameElement.value
+
+    console.log('Join as:', chatName)
+    console.log('Room uuid:', chatRoomUuid)
+
+    const data = new FormData()
+    data.append('name', chatName)
+    data.append('url', chatWindowUrl)
+
+    await fetch(`/api/create-room/${chatRoomUuid}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: data
+    })
+    .then(function(res) {
+        return res.json()
+    })
+    .then(function(data) {
+        console.log('data', data)
+    })
+
+
+    chatSocket = new WebSocket(`ws://${window.location.host}/ws/${chatRoomUuid}/`)
+
+
+    chatSocket.onmessage = function(e) {
+        console.log('onMessage')
+
+        onChatMessage(JSON.parse(e.data))
+    }
+
+
+    chatSocket.onopen = function(e) {
+        console.log('onOpen - chat socket was opened')
+
+        scrollToBottom()
+    }
+
+
+    chatSocket.onclose = function(e) {
+
+        console.log('onClose - chat socket was closed')
+    }
+}
+
+
 /**
- * Event listener
+ * Event listeners
  */
 
-chatOpenElement.onclick = function(e){
+chatOpenElement.onclick = function(e) {
     e.preventDefault()
 
     chatIconElement.classList.add('hidden')
@@ -162,7 +196,8 @@ chatOpenElement.onclick = function(e){
     return false
 }
 
-chatJoinElement.onclick = function(e){
+
+chatJoinElement.onclick = function(e) {
     e.preventDefault()
 
     chatWelcomeElement.classList.add('hidden')
@@ -173,7 +208,8 @@ chatJoinElement.onclick = function(e){
     return false
 }
 
-chatSubmitElement.onclick = function(e){
+
+chatSubmitElement.onclick = function(e) {
     e.preventDefault()
 
     sendMessage()
@@ -181,20 +217,18 @@ chatSubmitElement.onclick = function(e){
     return false
 }
 
-chatInputElement.onkeyup = function(e){
-    if (e.keyCode == 13){
+
+chatInputElement.onkeyup = function(e) {
+    if (e.keyCode == 13) {
         sendMessage()
     }
 }
 
-function scrollToBottom(){
-    chatLogElement.scrollTop = chatLogElement.scrollHeight
+
+chatInputElement.onfocus = function(e) {
+    chatSocket.send(JSON.stringify({
+        'type': 'update',
+        'message': 'writing_active',
+        'name': chatName
+    }))
 }
-
-
-
-
-
-
-
-
